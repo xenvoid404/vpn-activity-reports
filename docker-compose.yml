@@ -1,0 +1,7 @@
+services:
+  pencepu:
+    build: .
+    container_name: pencepu
+    restart: unless-stopped
+    environment:
+      - TZ=Asia/Jakarta
