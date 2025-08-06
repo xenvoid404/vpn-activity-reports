@@ -1,15 +1,31 @@
 from telethon import TelegramClient, events
 import asyncio
 import re
+import os
+import logging
+from datetime import datetime
 
-api_id = 25329914
-api_hash = "319773b99dd80f1a76de582aa0d478e4"
-session_name = "userbot"
+# Setup logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('/app/userbot.log'),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger(__name__)
 
-target_group = -1002537991702
+# Get credentials from environment variables or use defaults (not recommended for production)
+api_id = int(os.getenv('API_ID', '25329914'))
+api_hash = os.getenv('API_HASH', '319773b99dd80f1a76de582aa0d478e4')
+session_name = os.getenv('SESSION_NAME', 'userbot')
+
+target_group = int(os.getenv('TARGET_GROUP', '-1002537991702'))
 
 keywords = ["multi login", "limit bandwidth"]
 
+logger.info(f"Initializing Telegram client with session: {session_name}")
 client = TelegramClient(session_name, api_id, api_hash)
 
 
@@ -112,32 +128,61 @@ def reformat_message(text: str) -> str:
 
 @client.on(events.NewMessage)
 async def handler(event):
-    if not event.message.message:
-        return
+    try:
+        if not event.message.message:
+            return
 
-    text = event.message.message
-    text_lower = text.lower()
+        text = event.message.message
+        text_lower = text.lower()
+        
+        logger.debug(f"Received message from {event.chat_id}: {text[:50]}...")
 
-    if any(k in text_lower for k in keywords):
-        try:
+        if any(k in text_lower for k in keywords):
+            logger.info(f"Keyword detected in message from {event.chat_id}")
+            
             formatted_message = reformat_message(text)
 
             await client.send_message(
                 target_group,
                 formatted_message,
-                parse_mode="html",  # Diubah dari markdown ke html
+                parse_mode="html",
             )
 
-            print("Pesan diformat & dikirim:", formatted_message)
-        except Exception as e:
-            print("Gagal kirim:", str(e))
+            logger.info("Message formatted and sent successfully")
+            logger.debug(f"Formatted message: {formatted_message}")
+        
+    except Exception as e:
+        logger.error(f"Error in message handler: {str(e)}", exc_info=True)
 
 
 async def main():
-    print("Userbot is running...")
-    await client.start()
-    await client.run_until_disconnected()
+    try:
+        logger.info("Starting userbot...")
+        await client.start()
+        
+        # Get current user info
+        me = await client.get_me()
+        logger.info(f"Userbot started successfully as: {me.first_name} (@{me.username})")
+        
+        # Test connection to target group
+        try:
+            target_entity = await client.get_entity(target_group)
+            logger.info(f"Connected to target group: {target_entity.title}")
+        except Exception as e:
+            logger.error(f"Failed to connect to target group {target_group}: {str(e)}")
+        
+        logger.info("Userbot is now running and listening for messages...")
+        await client.run_until_disconnected()
+        
+    except Exception as e:
+        logger.error(f"Error starting userbot: {str(e)}", exc_info=True)
+        raise
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        logger.info("Userbot stopped by user")
+    except Exception as e:
+        logger.error(f"Fatal error: {str(e)}", exc_info=True)

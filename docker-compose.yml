@@ -3,5 +3,17 @@ services:
     build: .
     container_name: pencepu
     restart: unless-stopped
+    volumes:
+      - ./logs:/app/logs
+      - ./userbot.session:/app/userbot.session
     environment:
       - TZ=Asia/Jakarta
+      - API_ID=${API_ID:-25329914}
+      - API_HASH=${API_HASH:-319773b99dd80f1a76de582aa0d478e4}
+      - TARGET_GROUP=${TARGET_GROUP:--1002537991702}
+      - SESSION_NAME=userbot
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
